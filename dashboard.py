@@ -45,7 +45,7 @@ df_selected = df[['Pai', 'Tipo de item', 'Status', 'Responsável', 'Criado']].co
 df_selected['Criado'] = pd.to_datetime(df_selected['Criado'], format='%d/%b/%y %I:%M %p', errors='coerce')
 
 # 1. Gráfico de barras: Quantidade de itens por "Tipo de Item" e "Status" para cada "Pai"
-item_status_count = df_selected.groupby(['Pai', 'Tipo de item', 'Status']).size().reset_index(name='Count')
+item_status_count = df_selected.groupby(['Pai', 'Status']).size().reset_index(name='Count')
 
 fig1 = px.bar(item_status_count, x='Pai', y='Count', color='Status',
               title='Quantidade de itens por Tipo de Item e Status para cada Módulo',
