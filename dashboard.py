@@ -64,43 +64,46 @@ fig2 = px.bar(responsible_item_count, x='Responsável', y='Count', color='Tipo d
 fig2.update_traces(texttemplate='%{text:.2s}', textposition='inside')  # Mantém o texto dentro das barras
 
 
-locale.setlocale(locale.LC_ALL, 'pt_BR.utf8')
+# locale.setlocale(locale.LC_ALL, 'pt_BR.utf8')
 # 3. Gráfico de linha do tempo: Itens criados por Tipo de Item
+df_selected = df[['Pai', 'Tipo de item', 'Status', 'Responsável', 'Criado']].copy()
+df_selected['Criado'] = pd.to_datetime(df_selected['Criado'], format='%d/%b/%y %I:%M %p', errors='coerce')
 df_filtered = df_selected.dropna(subset=['Criado'])
-df_filtered['Criado'] = df_filtered['Criado'].dt.to_period('M').dt.to_timestamp()
-df_timeline = df_filtered.groupby(['Criado', 'Tipo de item']).size().reset_index(name='Count')
+df_filtered['Criado'] = df_filtered['Criado'].dt.to_period('M').dt.start_time
 
-fig3 = px.line(df_timeline, x='Criado', y='Count', color='Tipo de item',
+# Criar um índice com todos os meses no intervalo de datas
+all_months = pd.date_range(start=df_filtered['Criado'].min(), end=df_filtered['Criado'].max(), freq='MS')
+
+# Criar uma tabela pivô e reindexar para garantir todos os meses presentes
+df_pivot = df_filtered.groupby(['Criado', 'Tipo de item']).size().unstack(fill_value=0).reindex(all_months, fill_value=0, method=None).stack().reset_index(name='Count')
+
+# Renomear a coluna 'level_0' de volta para 'Criado'
+df_pivot = df_pivot.rename(columns={'level_0': 'Criado'})
+
+fig3 = px.line(df_pivot, x='Criado', y='Count', color='Tipo de item',
                title='Linha do Tempo de Itens Criados por Tipo de Item',
                labels={'Criado': 'Data', 'Count': 'Quantidade de Itens Criados', 'Tipo de item': 'Tipo de Item'},
                text='Count')  # Mostra o valor de 'Count' em cada ponto
 fig3.update_traces(texttemplate='%{text:.2s}', textposition='top center')  # Posiciona o texto acima dos pontos
-
-
-fig3.update_xaxes(
-    dtick="M1",
-    tickformat="%b\n%Y"
-)
+fig3.update_xaxes(dtick="M1", tickformat="%b\n%Y")
 
 # Configurar a página do Streamlit
 st.set_page_config(layout='wide')
-
-# Título da página
 st.title("Dashboard de Itens")
 
 # Exibir os gráficos no Streamlit
 st.plotly_chart(fig1, use_container_width=True)
 st.plotly_chart(fig2, use_container_width=True)
 st.plotly_chart(fig3, use_container_width=True)
-def run_streamlit(script_path):
-    subprocess.run(["streamlit", "run", script_path])
-
-if __name__ == '__main__':
-    script_path = "dashboard.py"
-    lock = FileLock("streamlit.lock")
-
-    try:
-        with lock.acquire(timeout=10):
-            run_streamlit(script_path)
-    except Timeout:
-        print("Another instance of Streamlit is already running.")
+# def run_streamlit(script_path):
+#     subprocess.run(["streamlit", "run", script_path])
+#
+# if __name__ == '__main__':
+#     script_path = "dashboard.py"
+#     lock = FileLock("streamlit.lock")
+#
+#     try:
+#         with lock.acquire(timeout=10):
+#             run_streamlit(script_path)
+#     except Timeout:
+#         print("Another instance of Streamlit is already running.")
