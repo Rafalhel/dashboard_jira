@@ -87,7 +87,7 @@ fig3.update_xaxes(dtick="M1", tickformat="%b\n%Y")
 
 # Configurar a página do Streamlit
 st.set_page_config(layout='wide')
-st.title("Dashboard de Itens")
+st.title("Dashboard Análise de Dados Jira")
 
 # Exibir os gráficos no Streamlit
 st.plotly_chart(fig1, use_container_width=True)
@@ -125,8 +125,8 @@ def load_html_data(file_path):
     return df
 
 
-# Iniciar a aplicação Streamlit
-st.title('Dashboard de Análise de Dados do Jira')
+# # Iniciar a aplicação Streamlit
+# st.title('Dashboard de Análise de Dados do Jira')
 
 # Carregar os dados
 jira_data = load_html_data('Jira (3).html')
