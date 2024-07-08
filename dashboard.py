@@ -4,8 +4,6 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import locale
 import plotly.express as px
-from filelock import FileLock, Timeout
-
 
 # Função para converter datas
 def replace_month(date_str):
@@ -95,18 +93,7 @@ st.title("Dashboard de Itens")
 st.plotly_chart(fig1, use_container_width=True)
 st.plotly_chart(fig2, use_container_width=True)
 st.plotly_chart(fig3, use_container_width=True)
-# def run_streamlit(script_path):
-#     subprocess.run(["streamlit", "run", script_path])
-#
-# if __name__ == '__main__':
-#     script_path = "dashboard.py"
-#     lock = FileLock("streamlit.lock")
-#
-#     try:
-#         with lock.acquire(timeout=10):
-#             run_streamlit(script_path)
-#     except Timeout:
-#         print("Another instance of Streamlit is already running.")
+
 # Carregar e processar o arquivo HTML
 def load_html_data(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -199,3 +186,121 @@ tipo_selecionado_tabela = st.selectbox('Selecione o Tipo de Item (para tabela)',
 st.write('## Tabela de Itens Filtrados')
 df_tabela_filtrado = jira_data[jira_data['Tipo de item'] == tipo_selecionado_tabela]
 st.dataframe(df_tabela_filtrado[['Chave', 'Status', 'Resumo', 'Descrição']])
+
+# Carregar e processar o arquivo HTML
+
+
+# Carregar e processar o arquivo backlog
+def load_backlog_data(file_path):
+    xls = pd.ExcelFile(file_path)
+    sheets = []
+    for sheet_name in xls.sheet_names:
+        sheet = pd.read_excel(xls, sheet_name)
+        sheets.append(sheet)
+    backlog_data = pd.concat(sheets, ignore_index=True)
+    return backlog_data
+
+# Iniciar a aplicação Streamlit
+st.title('Dashboard de Análise de Dados do Jira')
+
+# Carregar os dados
+backlog_data = load_backlog_data('backlog.xlsx')
+
+# Exibir colunas do backlog para depuração
+# st.write('Colunas disponíveis no backlog:', backlog_data.columns.tolist())
+
+# Combinando dados do backlog com dados do Jira
+if '#JIRA\nCard' in backlog_data.columns:
+    jira_data = jira_data.merge(backlog_data, left_on='Chave', right_on='#JIRA\nCard', how='left')
+else:
+    st.error("A coluna '#JIRA\nCard' não está presente no backlog.")
+# jira_data.to_csv('jira_data.csv', index=False, encoding='utf-8', sep=';')
+# Filtros no sidebar
+st.sidebar.title('Filtros')
+# tipo_selecionado_sidebar = st.sidebar.multiselect('Selecione o Tipo de Item (para gráficos)', jira_data['Tipo de item'].unique(), default=jira_data['Tipo de item'].unique())
+# prioridade_selecionada = st.sidebar.multiselect('Selecione a Prioridade', jira_data['Prioridade'].unique(), default=jira_data['Prioridade'].unique())
+
+# df_filtrado = jira_data[(jira_data['Tipo de item'].isin(tipo_selecionado_sidebar)) & (jira_data['Prioridade'].isin(prioridade_selecionada))]
+df_filtrado = jira_data[jira_data['Prioridade'].isin(prioridade_selecionada)]
+
+df_filtrado = df_filtrado[df_filtrado['Tipo de item'].isin(['Bug', 'Melhoria'])]
+
+# Gráfico de Tempo da Primeira Resposta por Mês
+st.write('## Tempo da Primeira Resposta por Mês (apenas Bug e Melhoria)')
+
+df_filtrado['Mês'] = df_filtrado['Criado'].dt.to_period('M').astype(str)
+
+if metrica_selecionada == 'Média':
+    resposta_por_mes = df_filtrado.groupby(['Mês', 'Tipo de item', 'Prioridade'])['Tempo da Primeira Resposta'].mean().reset_index()
+    fig_resposta = px.line(resposta_por_mes, x='Mês', y='Tempo da Primeira Resposta', color='Tipo de item', title='Tempo da Primeira Resposta por Mês (Média em dias)',color_discrete_map={'Melhoria': 'blue', 'Bug': 'red'})
+else:
+    resposta_por_mes = df_filtrado.groupby(['Mês', 'Tipo de item', 'Prioridade'])['Tempo da Primeira Resposta'].sum().reset_index()
+    fig_resposta = px.line(resposta_por_mes, x='Mês', y='Tempo da Primeira Resposta', color='Tipo de item', title='Tempo da Primeira Resposta por Mês (Total em dias)',color_discrete_map={'Melhoria': 'blue', 'Bug': 'red'})
+
+st.plotly_chart(fig_resposta)
+
+# Gráfico de Tempo de Solução por Mês
+st.write('## Tempo de Solução por Mês')
+
+if metrica_selecionada == 'Média':
+    solucao_por_mes = df_filtrado.groupby(['Mês', 'Tipo de item', 'Prioridade'])['Tempo de Solução'].mean().reset_index()
+    fig_solucao = px.line(solucao_por_mes, x='Mês', y='Tempo de Solução', color='Tipo de item', title='Tempo de Solução por Mês (Média em dias)',color_discrete_map={'Melhoria': 'blue', 'Bug': 'red'})
+else:
+    solucao_por_mes = df_filtrado.groupby(['Mês', 'Tipo de item', 'Prioridade'])['Tempo de Solução'].sum().reset_index()
+    fig_solucao = px.line(solucao_por_mes, x='Mês', y='Tempo de Solução', color='Tipo de item', title='Tempo de Solução por Mês (Total em dias)',color_discrete_map={'Melhoria': 'blue', 'Bug': 'red'})
+
+st.plotly_chart(fig_solucao)
+
+# Verificar se as colunas estão presentes antes de exibir a tabela
+colunas_tabela = ['Chave', 'Status', 'Resumo', 'Descrição', 'Análise x Documentação/Desenvolvimento/QA/Entrega', 'Responsável']
+colunas_presentes = [col for col in colunas_tabela if col in jira_data.columns]
+
+if len(colunas_presentes) < len(colunas_tabela):
+    st.warning("Algumas colunas não estão presentes nos dados combinados: " + str([col for col in colunas_tabela if col not in colunas_presentes]))
+
+# Tabela com filtro de Tipo de Item
+st.write('## Tabela de Itens Filtrados')
+df_tabela_filtrado = jira_data[jira_data['Tipo de item'] == tipo_selecionado_tabela]
+st.dataframe(df_tabela_filtrado[colunas_presentes])
+
+# Gráfico de Barras da Quantidade de Bugs e Melhorias por Mês
+st.write('## Quantidade de Bugs e Melhorias sem Data Pré ou Data Produção (Gráfico de Barras)')
+
+df_filtrado_sem_data = df_filtrado[(df_filtrado['Data Pré'].isnull()) & (df_filtrado['Data Produção'].isnull())]
+quantidade_por_mes_sem_data = df_filtrado_sem_data.groupby(['Mês', 'Tipo de item']).size().reset_index(
+    name='Quantidade')
+
+fig_barras_sem_data = px.bar(quantidade_por_mes_sem_data, x='Mês', y='Quantidade', color='Tipo de item',
+                             barmode='group',
+                             title='Quantidade de Bugs e Melhorias sem Data Pré ou Data Produção por Mês',
+                             color_discrete_map={'Melhoria': 'blue', 'Bug': 'red'})
+
+st.plotly_chart(fig_barras_sem_data)
+
+# Gráfico de Barras da Quantidade de Bugs e Melhorias com Data Pré ou Data Produção
+st.write('## Quantidade de Bugs e Melhorias com Data Pré ou Data Produção (Gráfico de Barras)')
+
+df_filtrado_data = df_filtrado[(df_filtrado['Data Pré'].notnull()) | (df_filtrado['Data Produção'].notnull())]
+quantidade_por_mes_data = df_filtrado_data.groupby(['Mês', 'Tipo de item']).size().reset_index(name='Quantidade')
+
+fig_barras_data = px.bar(quantidade_por_mes_data, x='Mês', y='Quantidade', color='Tipo de item',
+                         barmode='group', title='Quantidade de Bugs e Melhorias com Data Pré ou Data Produção por Mês',
+                         color_discrete_map={'Melhoria': 'blue', 'Bug': 'red'})
+st.plotly_chart(fig_barras_data)
+
+# Gráfico de Linha do Tempo de Versões
+st.write('## Linha do Tempo de Versões')
+
+# Filtrar as colunas necessárias do backlog
+df_versoes = jira_data[['Versão', 'Criado', 'Data Pré']]
+df_versoes = df_versoes.dropna(subset=['Versão', 'Criado', 'Data Pré'])
+
+# Convertendo colunas para datetime
+df_versoes['Criado'] = pd.to_datetime(df_versoes['Criado'], errors='coerce')
+df_versoes['Data Pré'] = pd.to_datetime(df_versoes['Data Pré'], errors='coerce')
+
+# Filtrar versões únicas
+df_versoes = df_versoes.groupby('Versão').agg({'Criado': 'min', 'Data Pré': 'max'}).reset_index()
+
+fig_versoes = px.timeline(df_versoes, x_start='Criado', x_end='Data Pré', y='Versão', title='Linha do Tempo das Versões')
+st.plotly_chart(fig_versoes)
