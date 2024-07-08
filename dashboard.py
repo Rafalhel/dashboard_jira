@@ -201,7 +201,7 @@ def load_backlog_data(file_path):
     return backlog_data
 
 # Iniciar a aplicação Streamlit
-# st.title('Dashboard de Análise de Dados do Jira')
+st.title('Dashboard de Análise de Dados Backlog')
 
 # Carregar os dados
 backlog_data = load_backlog_data('backlog.xlsx')
