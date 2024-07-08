@@ -215,8 +215,7 @@ if '#JIRA\nCard' in backlog_data.columns:
 else:
     st.error("A coluna '#JIRA\nCard' não está presente no backlog.")
 # jira_data.to_csv('jira_data.csv', index=False, encoding='utf-8', sep=';')
-# Filtros no sidebar
-st.sidebar.title('Filtros')
+
 # tipo_selecionado_sidebar = st.sidebar.multiselect('Selecione o Tipo de Item (para gráficos)', jira_data['Tipo de item'].unique(), default=jira_data['Tipo de item'].unique())
 # prioridade_selecionada = st.sidebar.multiselect('Selecione a Prioridade', jira_data['Prioridade'].unique(), default=jira_data['Prioridade'].unique())
 
